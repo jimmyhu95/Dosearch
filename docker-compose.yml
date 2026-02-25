@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  # MeiliSearch 搜索引擎
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: docsearch-meilisearch
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    environment:
+      - MEILI_ENV=development
+      - MEILI_NO_ANALYTICS=true
+    restart: unless-stopped
+
+volumes:
+  meilisearch_data:

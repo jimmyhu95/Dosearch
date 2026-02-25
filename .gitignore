@@ -1,0 +1,63 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Ensure specific env files won't be pushed by accident
+.env.local
+.env.development
+.env.production
+
+# -------------------------
+# GitHub 安全开源隔离墙配置
+# -------------------------
+
+# 数据库与搜索索引
+data.ms/
+data/db/
+data/
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+
+meilisearch.exe
+
+meilisearch.exe

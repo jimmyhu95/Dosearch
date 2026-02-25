@@ -1,0 +1,1 @@
+This is a technical architecture document about microservices. It discusses scalability, reliability, and deployment strategies using Kubernetes and Docker.
