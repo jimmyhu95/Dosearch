@@ -92,6 +92,16 @@ export function classifyDocument(
       }
     }
 
+    /**
+     * 【增强分类：发票/报销文件判定】
+     * 文件名包含"发票"时，给予 reimbursement 绝对优势分
+     */
+    if (category.id === 'reimbursement') {
+      if (title.includes('发票')) {
+        score += 100;
+      }
+    }
+
     if (score > 0) {
       // 【修复数学漏洞】：废弃按字典长度动态计算分母的做法
       // 设定 15 分为一个较为合理的满分基线。命中 7-8 个词即可达到极高置信度。

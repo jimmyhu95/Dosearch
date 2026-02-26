@@ -5,13 +5,16 @@ import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
+import { HighlightText } from '@/components/ui/HighlightText';
+
 interface DocumentContentProps {
   content: string | null;
   summary?: string | null;
   maxHeight?: number;
+  keyword?: string;
 }
 
-export function DocumentContent({ content, summary, maxHeight = 500 }: DocumentContentProps) {
+export function DocumentContent({ content, summary, maxHeight = 500, keyword = '' }: DocumentContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -41,7 +44,9 @@ export function DocumentContent({ content, summary, maxHeight = 500 }: DocumentC
       {summary && (
         <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
           <h4 className="text-sm font-medium text-blue-900 mb-2">摘要</h4>
-          <p className="text-sm text-blue-800">{summary}</p>
+          <p className="text-sm text-blue-800">
+            <HighlightText text={summary} keyword={keyword} />
+          </p>
         </div>
       )}
 
@@ -76,7 +81,7 @@ export function DocumentContent({ content, summary, maxHeight = 500 }: DocumentC
           style={!isExpanded && needsExpansion ? { maxHeight } : undefined}
         >
           <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
-            {content}
+            <HighlightText text={content} keyword={keyword} />
           </pre>
         </div>
 

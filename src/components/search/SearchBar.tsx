@@ -148,10 +148,10 @@ export function SearchBar({
             placeholder={placeholder}
             autoFocus={autoFocus}
             className={cn(
-              'w-full rounded-xl border border-gray-300 bg-white pl-12 pr-12 text-gray-900',
+              'w-full rounded-full border border-black/5 bg-white shadow-[0_2px_10px_rgb(0,0,0,0.02)] pl-12 pr-20 text-gray-900',
               'placeholder:text-gray-400',
-              'focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:outline-none',
-              'transition-all',
+              'focus:ring-2 focus:ring-zinc-900/10 focus:outline-none',
+              'transition-all duration-300',
               sizeStyles[size]
             )}
           />
@@ -160,7 +160,7 @@ export function SearchBar({
             <button
               type="button"
               onClick={handleClear}
-              className="absolute inset-y-0 right-12 flex items-center px-2 text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-20 flex items-center px-2 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <X className={iconSizes[size]} />
             </button>
@@ -169,9 +169,9 @@ export function SearchBar({
           <button
             type="submit"
             className={cn(
-              'absolute inset-y-0 right-0 flex items-center px-4',
-              'text-blue-600 hover:text-blue-700 font-medium',
-              sizeStyles[size]
+              'absolute inset-y-1 right-1 flex items-center px-4 rounded-full',
+              'bg-zinc-900 text-white hover:bg-zinc-800 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-900 shadow-sm',
+              'text-sm font-medium'
             )}
           >
             搜索
@@ -183,7 +183,7 @@ export function SearchBar({
       {showDropdown && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden"
+          className="absolute top-full left-0 right-0 mt-3 bg-white/90 backdrop-blur-md rounded-3xl border border-black/5 shadow-[0_12px_40px_rgb(0,0,0,0.08)] z-50 overflow-hidden"
         >
           <ul className="py-2">
             {suggestions.map((suggestion, index) => (

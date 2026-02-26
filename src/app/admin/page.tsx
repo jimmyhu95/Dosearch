@@ -118,59 +118,59 @@ export default function AdminPage() {
       title: '文档总数',
       value: stats?.totalDocuments || 0,
       icon: FileText,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
+      color: 'text-zinc-700',
+      bgColor: 'bg-zinc-100',
     },
     {
       title: '分类数量',
       value: stats?.totalCategories || 0,
       icon: FolderSync,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
+      color: 'text-indigo-700',
+      bgColor: 'bg-indigo-50',
     },
     {
       title: '关键词数',
       value: stats?.totalKeywords || 0,
       icon: BarChart3,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
+      color: 'text-purple-700',
+      bgColor: 'bg-purple-50',
     },
     {
       title: '存储空间',
       value: formatFileSize(stats?.storageUsed || 0),
       icon: HardDrive,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
+      color: 'text-rose-700',
+      bgColor: 'bg-rose-50',
       isString: true,
     },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-[#f8f7f4] font-sans selection:bg-black/10">
       <Header />
 
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">管理面板</h1>
-          <p className="text-gray-600">
+      <main className="flex-1 container mx-auto px-4 py-12 max-w-7xl">
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-zinc-900 mb-3 tracking-tight">管理面板</h1>
+          <p className="text-lg text-zinc-500 font-light">
             管理文档扫描、查看统计数据和系统设置
           </p>
         </div>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {statCards.map((card, index) => {
             const Icon = card.icon;
             return (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl ${card.bgColor} flex items-center justify-center`}>
-                      <Icon className={`w-6 h-6 ${card.color}`} />
+              <Card key={index} hover>
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-5">
+                    <div className={`w-14 h-14 rounded-2xl ${card.bgColor} flex items-center justify-center shadow-sm`}>
+                      <Icon className={`w-7 h-7 ${card.color}`} />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{card.title}</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm font-medium text-zinc-500 mb-1">{card.title}</p>
+                      <p className="text-3xl font-bold text-zinc-900 tracking-tight">
                         {card.isString ? card.value : card.value.toLocaleString()}
                       </p>
                     </div>
@@ -185,12 +185,12 @@ export default function AdminPage() {
           {/* 扫描配置 */}
           <Card>
             <CardHeader>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <FolderSync className="w-5 h-5" />
+              <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-3 tracking-tight">
+                <FolderSync className="w-6 h-6 text-zinc-700" />
                 文档扫描
               </h2>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   扫描路径
@@ -242,12 +242,12 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
+                <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-3 tracking-tight">
+                  <Clock className="w-6 h-6 text-zinc-700" />
                   扫描历史
                 </h2>
-                <Button variant="ghost" size="sm" onClick={fetchScanHistory}>
-                  <RefreshCw className="w-4 h-4" />
+                <Button variant="ghost" size="sm" onClick={fetchScanHistory} className="h-10 w-10 p-0 rounded-full">
+                  <RefreshCw className="w-5 h-5 text-zinc-500" />
                 </Button>
               </div>
             </CardHeader>
@@ -257,21 +257,22 @@ export default function AdminPage() {
                   {scanHistory.slice(0, 5).map((scan) => (
                     <div
                       key={scan.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors rounded-2xl"
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <p className="text-sm font-medium text-zinc-900 truncate mb-1">
                           {scan.scanPath}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-zinc-500">
                           {formatRelativeTime(scan.startedAt)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-zinc-600">
                           {scan.processedFiles} 文件
                         </span>
                         <Badge
+                          className="rounded-full px-3"
                           variant={scan.status === 'completed' ? 'success' : scan.status === 'failed' ? 'danger' : 'warning'}
                         >
                           {scan.status === 'completed' ? '完成' : scan.status === 'failed' ? '失败' : '进行中'}
@@ -281,9 +282,9 @@ export default function AdminPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>暂无扫描记录</p>
+                <div className="text-center py-12 text-zinc-400">
+                  <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-sm">暂无扫描记录</p>
                 </div>
               )}
             </CardContent>
@@ -291,14 +292,14 @@ export default function AdminPage() {
         </div>
 
         {/* 危险操作 */}
-        <Card className="mt-8 border-red-200">
+        <Card className="mt-8">
           <CardHeader>
-            <h2 className="text-lg font-semibold text-red-700 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
+            <h2 className="text-xl font-bold text-red-600 flex items-center gap-3 tracking-tight">
+              <AlertTriangle className="w-6 h-6" />
               危险操作
             </h2>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {clearResult && (
               <div className={`p-4 rounded-lg flex items-center gap-2 ${clearResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>
@@ -333,19 +334,19 @@ export default function AdminPage() {
         </Card>
 
         {stats?.documentsByType && Object.keys(stats.documentsByType).length > 0 && (
-          <Card className="mt-8">
+          <Card className="mt-12">
             <CardHeader>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
+              <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-3 tracking-tight">
+                <BarChart3 className="w-6 h-6 text-zinc-700" />
                 文件类型分布
               </h2>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
                 {Object.entries(stats.documentsByType).map(([type, count]) => (
-                  <div key={type} className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{count}</p>
-                    <p className="text-sm text-gray-500 uppercase">{type}</p>
+                  <div key={type} className="text-center p-6 bg-black/5 hover:bg-black/10 transition-colors rounded-[24px]">
+                    <p className="text-3xl font-bold text-zinc-900 mb-1">{count}</p>
+                    <p className="text-sm font-medium text-zinc-500 uppercase">{type}</p>
                   </div>
                 ))}
               </div>

@@ -53,11 +53,18 @@ next-env.d.ts
 data.ms/
 data/db/
 data/
+/data/
+.env
+.env.local
+dist/
+debug/
+temp/
+backup/
 
 # 日志与临时文件
 *.log
 npm-debug.log*
+*.local.ts
 
 meilisearch.exe
-
-meilisearch.exe
+meilisearch

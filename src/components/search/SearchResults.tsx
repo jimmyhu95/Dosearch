@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FileText, Calendar, HardDrive, Tag } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge, FileTypeBadge } from '@/components/ui/Badge';
+import { HighlightText } from '@/components/ui/HighlightText';
 import { formatRelativeTime, formatFileSize } from '@/lib/utils';
 import type { SearchResult } from '@/types';
 
@@ -46,16 +47,16 @@ export function SearchResults({ results, query, total, processingTime }: SearchR
       {/* 结果列表 */}
       <div className="space-y-4">
         {results.map((result) => (
-          <SearchResultCard key={result.document.id} result={result} />
+          <SearchResultCard key={result.document.id} result={result} query={query} />
         ))}
       </div>
     </div>
   );
 }
 
-function SearchResultCard({ result }: { result: SearchResult }) {
+function SearchResultCard({ result, query }: { result: SearchResult, query: string }) {
   const { document, highlights } = result;
-  
+
   // 获取高亮的内容片段
   const contentHighlight = highlights.find(h => h.field === 'content');
   const titleHighlight = highlights.find(h => h.field === 'title');
@@ -78,7 +79,7 @@ function SearchResultCard({ result }: { result: SearchResult }) {
               {titleHighlight ? (
                 <span dangerouslySetInnerHTML={{ __html: titleHighlight.snippet }} />
               ) : (
-                document.title
+                <HighlightText text={document.title} keyword={query} />
               )}
             </h3>
 
@@ -87,19 +88,19 @@ function SearchResultCard({ result }: { result: SearchResult }) {
               {contentHighlight ? (
                 <span dangerouslySetInnerHTML={{ __html: contentHighlight.snippet }} />
               ) : (
-                document.summary || '暂无摘要'
+                <HighlightText text={document.summary || '暂无摘要'} keyword={query} />
               )}
             </p>
 
             {/* 元信息 */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
               <FileTypeBadge type={document.fileType} />
-              
+
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 {formatRelativeTime(document.createdAt)}
               </span>
-              
+
               <span className="flex items-center gap-1">
                 <HardDrive className="w-3.5 h-3.5" />
                 {formatFileSize(document.fileSize)}

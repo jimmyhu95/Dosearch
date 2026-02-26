@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "lock": "node scripts/lock-ai.js",
+    "predev": "npm run lock",
     "dev": "next dev -p 3800",
+    "prebuild": "npm run lock",
     "build": "next build",
     "start": "next start -p 3800",
     "lint": "eslint"

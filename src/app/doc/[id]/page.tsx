@@ -9,6 +9,9 @@ import { DocumentMeta } from '@/components/document/DocumentMeta';
 import { DocumentContent } from '@/components/document/DocumentContent';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
+import { HighlightText } from '@/components/ui/HighlightText';
+import { DocumentActions } from '@/components/document/DocumentActions';
+import { DocumentQA } from '@/components/document/DocumentQA';
 import type { DocumentWithCategories } from '@/types';
 import { db } from '@/lib/db';
 import { documents, documentCategories, categories, keywords } from '@/lib/db/schema';
@@ -16,6 +19,7 @@ import { eq } from 'drizzle-orm';
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 // 获取文档数据 (基于 Server Component 直连 DB，避免内部 HTTP 套娃带来的 404 和网络开销)
@@ -84,8 +88,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function DocumentPage({ params }: PageProps) {
+export default async function DocumentPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
+  const q = resolvedSearchParams?.q || '';
   const doc = await getDocument(id);
 
   if (!doc) {
@@ -131,33 +137,26 @@ export default async function DocumentPage({ params }: PageProps) {
             {/* 标题 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                {doc.title}
+                <HighlightText text={doc.title} keyword={q} />
               </h1>
 
               {/* 操作按钮 */}
-              <div className="flex flex-wrap gap-3">
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  下载原文件
-                </Button>
-                <Button variant="outline" size="sm">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  打开文件位置
-                </Button>
-              </div>
+              <DocumentActions id={doc.id} />
             </div>
 
             {/* 文档内容 */}
             <DocumentContent
               content={doc.content}
               summary={doc.summary}
+              keyword={q}
             />
           </div>
 
           {/* 侧边栏 */}
           <aside className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-6">
               <DocumentMeta document={doc} />
+              <DocumentQA documentId={doc.id} />
             </div>
           </aside>
         </div>

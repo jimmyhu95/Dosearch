@@ -1,6 +1,6 @@
 // 文档类型定义
 
-export type FileType = 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'txt' | 'image';
+export type FileType = 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'txt' | 'image' | 'ofd';
 
 export interface DocumentMetadata {
   author?: string;

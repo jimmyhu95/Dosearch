@@ -4,15 +4,17 @@ import Link from 'next/link';
 import { FileText, Calendar, HardDrive, ExternalLink } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge, FileTypeBadge } from '@/components/ui/Badge';
+import { HighlightText } from '@/components/ui/HighlightText';
 import { formatRelativeTime, formatFileSize, truncateText } from '@/lib/utils';
 import type { DocumentWithCategories } from '@/types';
 
 interface DocumentCardProps {
   document: DocumentWithCategories;
   showContent?: boolean;
+  searchQuery?: string;
 }
 
-export function DocumentCard({ document, showContent = true }: DocumentCardProps) {
+export function DocumentCard({ document, showContent = true, searchQuery = '' }: DocumentCardProps) {
   return (
     <Card hover className="overflow-hidden">
       <Link href={`/doc/${document.id}`} className="block p-5">
@@ -29,7 +31,7 @@ export function DocumentCard({ document, showContent = true }: DocumentCardProps
             {/* 标题 */}
             <div className="flex items-start justify-between gap-2 mb-2">
               <h3 className="text-base font-semibold text-gray-900 truncate">
-                {document.title}
+                <HighlightText text={document.title} keyword={searchQuery} />
               </h3>
               <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
             </div>
@@ -37,7 +39,7 @@ export function DocumentCard({ document, showContent = true }: DocumentCardProps
             {/* 摘要 */}
             {showContent && document?.summary && (
               <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                {truncateText(document.summary, 150)}
+                <HighlightText text={truncateText(document.summary, 150)} keyword={searchQuery} />
               </p>
             )}
 

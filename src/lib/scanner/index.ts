@@ -90,7 +90,7 @@ function shouldScanFile(
 }
 
 // 支持的扩展名列表（前置过滤，提升性能）
-const SUPPORTED_EXTS = new Set(['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.txt', '.png', '.jpg', '.jpeg']);
+const SUPPORTED_EXTS = new Set(SUPPORTED_EXTENSIONS);
 
 export async function getFilesRecursively(dirPath: string): Promise<string[]> {
   let results: string[] = [];
@@ -174,20 +174,94 @@ async function processFile(
       return { isNew: false, isUpdated: false };
     }
 
-    // 解析文档
-    const parsed = await parseDocument(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const fileType = getFileType(filePath) as FileType;
 
-    // 生成摘要
-    const summary = generateSummary(parsed.content, 300);
+    // ─── OFD 硬拦截：跳过解析与分类，直接归入报销文件 ───
+    if (ext === '.ofd') {
+      const ofdTitle = path.basename(filePath, ext);
+      const ofdSummary = '系统自动识别为 OFD 电子发票文件';
+      const ofdCategories = [{ categoryId: 'reimbursement', categoryName: '报销文件', confidence: 1 }];
 
-    // 分类文档：图片文件直接归入"图片"分类，其余走关键词分类器
+      const docId = existingDoc?.id || nanoid();
+      const now = new Date().toISOString();
+
+      if (existingDoc) {
+        await db.update(documents)
+          .set({
+            title: ofdTitle,
+            content: '',
+            summary: ofdSummary,
+            fileHash,
+            modifiedAt: now,
+            indexedAt: now,
+            metadata: JSON.stringify({ format: 'OFD' }),
+          })
+          .where(eq(documents.id, existingDoc.id));
+        await db.delete(documentCategories).where(eq(documentCategories.documentId, existingDoc.id));
+        await db.delete(keywords).where(eq(keywords.documentId, existingDoc.id));
+      } else {
+        await db.insert(documents).values({
+          id: docId,
+          title: ofdTitle,
+          filePath,
+          fileType,
+          fileSize: stats.size,
+          content: '',
+          summary: ofdSummary,
+          createdAt: now,
+          modifiedAt: now,
+          indexedAt: now,
+          fileHash,
+          metadata: JSON.stringify({ format: 'OFD' }),
+        });
+      }
+
+      for (const cat of ofdCategories) {
+        await db.insert(documentCategories).values({
+          documentId: docId,
+          categoryId: cat.categoryId,
+          confidence: cat.confidence,
+        });
+      }
+
+      const meiliDoc: MeiliDocument = {
+        id: docId,
+        title: ofdTitle,
+        content: '',
+        summary: ofdSummary,
+        fileType,
+        filePath,
+        categories: ofdCategories.map(c => c.categoryId),
+        categoryNames: ofdCategories.map(c => c.categoryName),
+        keywords: [],
+        createdAt: new Date(now).getTime(),
+        modifiedAt: new Date(now).getTime(),
+        fileSize: stats.size,
+      };
+
+      try { await indexDocument(meiliDoc); } catch (e) {
+        console.warn('Failed to index OFD document to MeiliSearch:', e);
+      }
+
+      return { isNew: !existingDoc, isUpdated: !!existingDoc };
+    }
+
+    // ─── 常规文件处理 ───
+    const parsed = await parseDocument(filePath);
+
+    // 生成摘要 (必须加上 await)
+    const summary = await generateSummary(parsed.content, 300);
+
+    // 分类文档：图片归图片，Excel归报表，其余走分类器 (使用 ext 判断，并加上 await)
     const docCategories = fileType === 'image'
       ? [{ categoryId: 'image', categoryName: '图片', confidence: 1 }]
-      : getDocumentCategories(parsed.content, parsed.title);
+      : (ext === '.xlsx' || ext === '.xls')
+        ? [{ categoryId: 'report', categoryName: '报表', confidence: 1 }]
+        : await getDocumentCategories(parsed.content, parsed.title);
 
-    // 提取关键词
-    const docKeywords = extractKeywords(parsed.content, 20, 2);
+    // 提取关键词 (必须加上 await)
+    const docKeywords = await extractKeywords(parsed.content, 20, 2);
 
     const docId = existingDoc?.id || nanoid();
     const now = new Date().toISOString();
@@ -202,7 +276,7 @@ async function processFile(
           fileHash,
           modifiedAt: now,
           indexedAt: now,
-          metadata: JSON.stringify(parsed.metadata),
+          metadata: parsed.metadata, // 💡 修复：去掉 JSON.stringify，让 Drizzle 底层自动处理
         })
         .where(eq(documents.id, existingDoc.id));
 
@@ -222,26 +296,33 @@ async function processFile(
         modifiedAt: now,
         indexedAt: now,
         fileHash,
-        metadata: JSON.stringify(parsed.metadata),
+        metadata: parsed.metadata, // 💡 修复：去掉 JSON.stringify
       });
     }
 
     // 保存分类关联
     for (const cat of docCategories) {
+      // 💡 终极防御：兼容 AI 返回的 id 和 我们硬编码返回的 categoryId
+      const finalCategoryId = cat.categoryId || (cat as any).id || 'other';
       await db.insert(documentCategories).values({
         documentId: docId,
-        categoryId: cat.categoryId,
-        confidence: cat.confidence,
+        categoryId: finalCategoryId,
+        confidence: cat.confidence || 1,
       });
     }
 
-    // 保存关键词
+    // 保存关键词 (兼容修复版保持不变)
     for (const kw of docKeywords) {
+      const keywordText = typeof kw === 'string' ? kw : kw.keyword;
+      const keywordWeight = typeof kw === 'string' ? 1.0 : (kw.weight || 1.0);
+
+      if (!keywordText) continue;
+
       await db.insert(keywords).values({
         id: nanoid(),
         documentId: docId,
-        keyword: kw.keyword,
-        weight: kw.weight,
+        keyword: keywordText,
+        weight: keywordWeight,
       });
     }
 
@@ -253,9 +334,9 @@ async function processFile(
       summary,
       fileType,
       filePath,
-      categories: docCategories.map(c => c.categoryId),
-      categoryNames: docCategories.map(c => c.categoryName),
-      keywords: docKeywords.map(k => k.keyword),
+      categories: docCategories.map(c => c.categoryId || (c as any).id || 'other'),
+      categoryNames: docCategories.map(c => c.categoryName || (c as any).name || '其他'),
+      keywords: docKeywords.map(k => typeof k === 'string' ? k : k.keyword).filter(Boolean),
       createdAt: new Date(now).getTime(),
       modifiedAt: new Date(now).getTime(),
       fileSize: stats.size,
@@ -283,6 +364,11 @@ async function processFile(
       isUpdated: !!existingDoc,
     };
   } catch (error) {
+    // 🚨 核心大招：强行把被吞掉的错误大字打印到你的 Node.js 黑框控制台上！
+    console.error(`\n❌ [终极排查] 文件处理在某一步崩溃了！文件: ${filePath}`);
+    console.error(error);
+    console.error(`-----------------------------------------\n`);
+
     return {
       isNew: false,
       isUpdated: false,

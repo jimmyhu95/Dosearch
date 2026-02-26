@@ -28,12 +28,12 @@ export function debounce<T extends (...args: string[]) => void>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout | null = null;
-  
+
   return (...args: Parameters<T>) => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    
+
     timeoutId = setTimeout(() => {
       func(...args);
     }, wait);
@@ -48,7 +48,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle = false;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
@@ -123,7 +123,7 @@ export function getFileTypeIcon(fileType: string): string {
     ppt: 'presentation',
     txt: 'file',
   };
-  
+
   return iconMap[fileType] || 'file';
 }
 
@@ -141,6 +141,6 @@ export function getFileTypeColor(fileType: string): string {
     ppt: '#F59E0B',
     txt: '#6B7280',
   };
-  
+
   return colorMap[fileType] || '#6B7280';
 }

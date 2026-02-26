@@ -24,12 +24,13 @@ const FILE_TYPE_MAP: Record<string, FileType> = {
   '.jpeg': 'image',
   '.gif': 'image',
   '.webp': 'image',
+  '.ofd': 'ofd',
 };
 
 // 支持的文件扩展名
 export const SUPPORTED_EXTENSIONS = [
   '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.txt',
-  '.png', '.jpg', '.jpeg', '.gif', '.webp',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ofd',
 ];
 
 /**
