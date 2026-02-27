@@ -1,6 +1,6 @@
 {
   "name": "doc-search-system",
-  "version": "0.1.0",
+  "version": "5.0.0",
   "private": true,
   "scripts": {
     "lock": "node scripts/lock-ai.js",

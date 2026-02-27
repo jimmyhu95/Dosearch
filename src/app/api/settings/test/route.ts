@@ -51,6 +51,51 @@ async function testMeiliSearch(host: string) {
     };
 }
 
+async function testPrivateLocal(baseUrl: string, apiKey: string, modelName: string) {
+    if (!baseUrl) {
+        return { success: false, error: '未配置 Private Base URL，请先填写并保存' };
+    }
+
+    // Ensure the base URL ends with /v1 to avoid 404 errors as requested
+    let finalBaseUrl = baseUrl;
+    if (!finalBaseUrl.endsWith('/v1') && !finalBaseUrl.includes('/v1/')) {
+        finalBaseUrl = finalBaseUrl.replace(/\/$/, '') + '/v1';
+    }
+
+    const chatUrl = `${finalBaseUrl}/chat/completions`;
+    const targetModel = modelName || 'qwen3.5-flash';
+
+    try {
+        const res = await fetch(chatUrl, {
+            method: 'POST',
+            headers: {
+                ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: targetModel,
+                messages: [{ role: 'user', content: 'hi' }],
+                max_tokens: 10,
+            }),
+            signal: AbortSignal.timeout(5_000), // 5 seconds timeout as requested
+        });
+
+        if (res.status === 401 || res.status === 403) {
+            return { success: false, error: `API Key 无效或无权限（HTTP ${res.status}）` };
+        }
+        if (!res.ok) {
+            const text = await res.text();
+            return { success: false, error: `请求失败（HTTP ${res.status}）: ${text.slice(0, 200)}` };
+        }
+
+        const data = await res.json();
+        const reply = data?.choices?.[0]?.message?.content ?? '（无回复内容）';
+        return { success: true, message: `连接成功，模型回复：${reply.slice(0, 50)}` };
+    } catch (err: unknown) {
+        return { success: false, error: `连接失败：无法访问该地址，请检查本地服务是否已启动或地址是否正确。(${String(err)})` };
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         initializeDatabase();
@@ -62,6 +107,15 @@ export async function POST(request: NextRequest) {
                 body.host?.trim() ||
                 getSetting('meilisearch_host', process.env.MEILISEARCH_HOST || 'http://localhost:7700');
             const result = await testMeiliSearch(host);
+            return NextResponse.json(result, { status: result.success ? 200 : 400 });
+        }
+
+        if (type === 'private') {
+            const baseUrl = body.baseUrl?.trim() || getSetting('private_base_url', 'http://127.0.0.1:8000/v1');
+            const apiKey = body.apiKey?.trim() || getSetting('private_api_key', '');
+            const modelName = body.modelName?.trim() || getSetting('private_model_name', '');
+
+            const result = await testPrivateLocal(baseUrl, apiKey, modelName);
             return NextResponse.json(result, { status: result.success ? 200 : 400 });
         }
 

@@ -5,11 +5,21 @@ import { getAllSettings, setSetting } from '@/lib/settings';
 import { initializeDatabase } from '@/lib/db';
 
 // 对外暴露的配置项定义
-const SETTING_KEYS = ['dashscope_api_key', 'meilisearch_host', 'meilisearch_api_key'] as const;
+const SETTING_KEYS = [
+    'api_mode',
+    'private_base_url',
+    'private_api_key',
+    'private_model_name',
+    'dashscope_api_key',
+    'meilisearch_host',
+    'meilisearch_api_key'
+] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
 
 // 敏感 key 脱敏：保留前 8 位 + ***
-function mask(value: string): string {
+function mask(value: string, key: string): string {
+    const nonSensitive = ['api_mode', 'private_base_url', 'private_model_name', 'meilisearch_host'];
+    if (nonSensitive.includes(key)) return value;
     if (!value || value.length <= 8) return value ? '********' : '';
     return value.slice(0, 8) + '***';
 }
@@ -19,10 +29,14 @@ export async function GET() {
         initializeDatabase();
         const all = getAllSettings();
 
-        const result: Record<string, { masked: string; configured: boolean }> = {};
+        const result: Record<string, { masked: string; configured: boolean; raw?: string }> = {};
         for (const key of SETTING_KEYS) {
             const val = all[key] ?? '';
-            result[key] = { masked: mask(val), configured: val.length > 0 };
+            result[key] = {
+                masked: mask(val, key),
+                configured: val.length > 0,
+                ...(['api_mode', 'private_base_url', 'private_model_name', 'meilisearch_host'].includes(key) ? { raw: val } : {})
+            };
         }
 
         return NextResponse.json({ success: true, data: result });
