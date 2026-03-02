@@ -6,6 +6,8 @@ import { getSetting } from '@/lib/settings';
 const DEFAULT_PUBLIC_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_PRIVATE_BASE_URL = 'http://127.0.0.1:8000/v1';
 
+const INTERNVL_THINKING_PROMPT = `You are an AI assistant that rigorously follows this response protocol:\n1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.\n2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.\nEnsure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.`;
+
 // OpenAI 兼容的消息格式
 type TextContent = { type: 'text'; text: string };
 type ImageContent = { type: 'image_url'; image_url: { url: string } };
@@ -43,6 +45,10 @@ async function chat(
   let apiKey = '';
   let actualModel = model;
 
+  let finalMessages = [...messages];
+  let finalTemperature = options.temperature ?? 0.3;
+  let finalTopP: number | undefined = undefined;
+
   if (apiMode === 'private') {
     let baseUrl = getSetting('private_base_url', DEFAULT_PRIVATE_BASE_URL);
     // User requested explicitly: ensure base URL always ends with /v1 to avoid 404 errors with vLLM
@@ -55,9 +61,56 @@ async function chat(
     if (privateModel) {
       actualModel = privateModel;
     }
+
+    // 1 & 2. 注入 System Prompt
+    if (finalMessages.length > 0 && finalMessages[0].role === 'system') {
+      const sysMsg = finalMessages[0];
+      if (typeof sysMsg.content === 'string') {
+        finalMessages[0] = {
+          ...sysMsg,
+          content: sysMsg.content + '\n\n' + INTERNVL_THINKING_PROMPT
+        };
+      } else if (Array.isArray(sysMsg.content)) {
+        finalMessages[0] = {
+          ...sysMsg,
+          content: [
+            ...sysMsg.content,
+            { type: 'text', text: '\n\n' + INTERNVL_THINKING_PROMPT }
+          ]
+        };
+      }
+    } else {
+      finalMessages.unshift({
+        role: 'system',
+        content: INTERNVL_THINKING_PROMPT
+      });
+    }
+
+    // 3. 强制标准化 Content 数组结构
+    finalMessages = finalMessages.map(msg => ({
+      ...msg,
+      content: typeof msg.content === 'string'
+        ? [{ type: 'text', text: msg.content }]
+        : msg.content
+    }));
+
+    // 4. 强制覆盖推理参数
+    finalTemperature = 0.6;
+    finalTopP = 0.95;
+
   } else {
     chatUrl = `${DEFAULT_PUBLIC_BASE_URL}/chat/completions`;
     apiKey = getSetting('dashscope_api_key', process.env.DASHSCOPE_API_KEY || '');
+  }
+
+  const payload: any = {
+    model: actualModel,
+    messages: finalMessages,
+    max_tokens: options.max_tokens ?? 1500,
+    temperature: finalTemperature,
+  };
+  if (finalTopP !== undefined) {
+    payload.top_p = finalTopP;
   }
 
   const res = await fetch(chatUrl, {
@@ -66,12 +119,7 @@ async function chat(
       Authorization: apiKey ? `Bearer ${apiKey}` : '',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: actualModel,
-      messages,
-      max_tokens: options.max_tokens ?? 1500,
-      temperature: options.temperature ?? 0.3,
-    }),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
   });
 
