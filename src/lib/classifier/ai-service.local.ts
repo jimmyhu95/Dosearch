@@ -1,12 +1,7 @@
-// 阿里云百炼 AI 服务 — 使用 OpenAI 兼容端点（/compatible-mode/v1）
-// 统一 text/vision 模型调用，无需区分两套请求路由
-
 import { getSetting } from '@/lib/settings';
 
 const DEFAULT_PUBLIC_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_PRIVATE_BASE_URL = 'http://127.0.0.1:8000/v1';
-
-const INTERNVL_THINKING_PROMPT = `You are an AI assistant that rigorously follows this response protocol:\n1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.\n2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.\nEnsure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.`;
 
 // OpenAI 兼容的消息格式
 type TextContent = { type: 'text'; text: string };
@@ -32,7 +27,7 @@ interface OpenAIResponse {
 }
 
 /**
- * 统一 chat 调用（文本 + 视觉模型共用）
+ * 统一 chat 调用（完美兼容 DashScope 与 本地 vLLM）
  */
 async function chat(
   messages: ChatMessage[],
@@ -45,73 +40,33 @@ async function chat(
   let apiKey = '';
   let actualModel = model;
 
-  let finalMessages = [...messages];
-  let finalTemperature = options.temperature ?? 0.3;
-  let finalTopP: number | undefined = undefined;
-
   if (apiMode === 'private') {
     let baseUrl = getSetting('private_base_url', DEFAULT_PRIVATE_BASE_URL);
-    // User requested explicitly: ensure base URL always ends with /v1 to avoid 404 errors with vLLM
+    // 强制补全 /v1 防止 vLLM 报 404
     if (!baseUrl.endsWith('/v1') && !baseUrl.includes('/v1/')) {
       baseUrl = baseUrl.replace(/\/$/, '') + '/v1';
     }
     chatUrl = `${baseUrl}/chat/completions`;
     apiKey = getSetting('private_api_key', '');
+
+    // 如果私有化配置了指定的模型名称，则覆盖传入的 model
     const privateModel = getSetting('private_model_name', '');
     if (privateModel) {
       actualModel = privateModel;
     }
-
-    // 1 & 2. 注入 System Prompt
-    if (finalMessages.length > 0 && finalMessages[0].role === 'system') {
-      const sysMsg = finalMessages[0];
-      if (typeof sysMsg.content === 'string') {
-        finalMessages[0] = {
-          ...sysMsg,
-          content: sysMsg.content + '\n\n' + INTERNVL_THINKING_PROMPT
-        };
-      } else if (Array.isArray(sysMsg.content)) {
-        finalMessages[0] = {
-          ...sysMsg,
-          content: [
-            ...sysMsg.content,
-            { type: 'text', text: '\n\n' + INTERNVL_THINKING_PROMPT }
-          ]
-        };
-      }
-    } else {
-      finalMessages.unshift({
-        role: 'system',
-        content: INTERNVL_THINKING_PROMPT
-      });
-    }
-
-    // 3. 强制标准化 Content 数组结构
-    finalMessages = finalMessages.map(msg => ({
-      ...msg,
-      content: typeof msg.content === 'string'
-        ? [{ type: 'text', text: msg.content }]
-        : msg.content
-    }));
-
-    // 4. 强制覆盖推理参数
-    finalTemperature = 0.6;
-    finalTopP = 0.95;
-
   } else {
+    // 公有云模式（DashScope 阿里云百炼）
     chatUrl = `${DEFAULT_PUBLIC_BASE_URL}/chat/completions`;
     apiKey = getSetting('dashscope_api_key', process.env.DASHSCOPE_API_KEY || '');
   }
 
+  // 构建统一、标准的 Payload（公私云都不再做拦截篡改）
   const payload: any = {
     model: actualModel,
-    messages: finalMessages,
+    messages: messages, // 直接透传标准格式
     max_tokens: options.max_tokens ?? 1500,
-    temperature: finalTemperature,
+    temperature: options.temperature ?? 0.3,
   };
-  if (finalTopP !== undefined) {
-    payload.top_p = finalTopP;
-  }
 
   const res = await fetch(chatUrl, {
     method: 'POST',
@@ -125,7 +80,7 @@ async function chat(
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`DashScope API error ${res.status}: ${err.slice(0, 300)}`);
+    throw new Error(`API error ${res.status}: ${err.slice(0, 300)}`);
   }
 
   const data: OpenAIResponse = await res.json();
@@ -323,22 +278,26 @@ export async function aiDocumentQA(content: string, question: string): Promise<s
  * base64Data: 纯 base64 字符串，mimeType: 如 image/png
  */
 export async function analyzeImage(base64Data: string, mimeType: string): Promise<string> {
-  try {
-    return await chat(
-      [
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
-            { type: 'text', text: '请详细描述这张图片的内容，提取图中所有可见的文字（如有），并总结图片的主要信息。用中文回答。' },
-          ],
-        },
+  if (!mimeType) mimeType = 'image/png';
+  if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+  const cleanMime = mimeType.split(';')[0].trim();
+
+  const payload: ChatMessage[] = [
+    {
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: `data:${cleanMime};base64,${base64Data}` } },
+        { type: 'text', text: '请详细描述这张图片的内容，提取图中所有可见的文字（如有），并总结图片的主要信息。用中文回答。' },
       ],
-      'qwen3-vl-plus',
-      { max_tokens: 1000, timeoutMs: 55_000 }
-    );
+    },
+  ];
+
+  try {
+    return await chat(payload, 'qwen3-vl-plus', { max_tokens: 1000, timeoutMs: 55_000 });
   } catch (error) {
-    console.error('DashScope Image analysis full error:', error);
-    return '【系统提示：图片解析超时或触发接口限流，已跳过】';
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('DashScope Image analysis full error:', msg);
+    return `【系统提示：图片解析失败 (${msg.substring(0, 50)})】`;
   }
 }
+

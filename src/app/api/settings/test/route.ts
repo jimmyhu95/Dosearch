@@ -10,30 +10,55 @@ async function testDashScope(apiKey: string) {
     if (!apiKey) {
         return { success: false, error: '未配置 API Key，请先填写并保存' };
     }
-    const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'qwen3.5-flash',
-            messages: [{ role: 'user', content: '你好' }],
-            max_tokens: 5,
-        }),
-        signal: AbortSignal.timeout(10_000),
-    });
 
-    if (res.status === 401 || res.status === 403) {
-        return { success: false, error: `API Key 无效或无权限（HTTP ${res.status}）` };
+    let lastError = '';
+
+    // 网络层偶尔出现 TLS 握手慢导致 AbortError / ECONNRESET，加入 1 次重试防御
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const res = await fetch(CHAT_URL, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'qwen3.5-flash',
+                    messages: [{ role: 'user', content: '你好' }],
+                    max_tokens: 5,
+                }),
+                signal: AbortSignal.timeout(20_000), // 放宽：10s -> 20s
+            });
+
+            if (res.status === 401 || res.status === 403) {
+                return { success: false, error: `API Key 无效或无权限（HTTP ${res.status}）` };
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                return { success: false, error: `请求失败（HTTP ${res.status}）: ${text.slice(0, 200)}` };
+            }
+            const data = await res.json();
+            const reply = data?.choices?.[0]?.message?.content ?? '（无回复内容）';
+            return { success: true, message: `连接成功，模型回复：${reply.slice(0, 50)}` };
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            lastError = msg;
+
+            // 如果是因为网络原因（Timeout 导致 AbortError，或者 ECONNRESET 等）
+            // 且是第一次尝试，则重试一次
+            const isNetworkBlock = msg.includes('timeout') || msg.includes('ECONNRESET') || msg.includes('aborted');
+            if (isNetworkBlock && attempt === 1) {
+                console.warn(`[testDashScope] 网络握手异常，1s 后重试... (${msg})`);
+                await new Promise(r => setTimeout(r, 1000));
+                continue;
+            }
+
+            // 如果非网络报错，或者第二次重试依旧失败，跳出并抛错
+            break;
+        }
     }
-    if (!res.ok) {
-        const text = await res.text();
-        return { success: false, error: `请求失败（HTTP ${res.status}）: ${text.slice(0, 200)}` };
-    }
-    const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content ?? '（无回复内容）';
-    return { success: true, message: `连接成功，模型回复：${reply.slice(0, 50)}` };
+
+    return { success: false, error: `连接超时或网络异常（请确保设备能正常访问外网）：${lastError}` };
 }
 
 async function testMeiliSearch(host: string) {
